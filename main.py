@@ -239,8 +239,8 @@ def handle(message):
                 "<code>/орелрешка @ник</code> — орёл и решка\n"
                 "<code>/принять орёл/решка</code> — принять вызов\n"
                 "<code>/верю</code> — верю/не верю\n"
-                "<code>/B</b> — верю\n"
-                "<code>/NB</b> — не верю\n"
+                "<code>/B</code> — верю\n"
+                "<code>/NB</code> — не верю\n"
                 "<code>/результат</code> — показать результат\n\n"
                 "<b>🎬 Что посмотреть</b>\n"
                 "<code>/фильм</code> — фильм на вечер\n"
@@ -403,9 +403,41 @@ def handle(message):
 
         if cmd == "верю":
             GAME_STATE = getattr(handle, '_game_state', {})
-            if cid in GAME_STATE:
-                say(cid, "Игра уже идёт. Дождись результата.")
-                return
+            old_game = GAME_STATE.get(cid)
+            if old_game:
+                elapsed = time.time() - old_game["time"]
+                if elapsed > 30:
+                    players = old_game["players"]
+                    answer = old_game["answer"]
+                    del GAME_STATE[cid]
+                    answer_text = "Правда ✅" if answer == "True" else "Ложь ❌"
+                    if not players:
+                        say(cid,
+                            f"🧠 <b>Время вышло!</b>\n\n"
+                            f"Никто не успел ответить.\n\n"
+                            f"Ответ: <b>{answer_text}</b>",
+                            parse_mode="HTML"
+                        )
+                    else:
+                        correct = []
+                        wrong = []
+                        for name, vote in players.items():
+                            if (vote == "В" and answer == "True") or (vote == "НВ" and answer == "False"):
+                                correct.append(name)
+                            else:
+                                wrong.append(name)
+                        correct_text = "\n".join(f"✅ {n}" for n in correct) if correct else "Никто"
+                        wrong_text = "\n".join(f"❌ {n}" for n in wrong) if wrong else "Никто"
+                        say(cid,
+                            f"🧠 <b>Время вышло!</b>\n\n"
+                            f"Ответ: <b>{answer_text}</b>\n\n"
+                            f"Угадали:\n{correct_text}\n\n"
+                            f"Не угадали:\n{wrong_text}",
+                            parse_mode="HTML"
+                        )
+                else:
+                    say(cid, "Игра уже идёт. Дождись результата.")
+                    return
             fact = random.choice(FACTS)
             answer = "True" if fact["a"] else "False"
             GAME_STATE[cid] = {
@@ -476,6 +508,7 @@ def handle(message):
             if not game:
                 say(cid, "Нет активной игры. Напиши /верю чтобы начать.")
                 return
+            elapsed = time.time() - game["time"]
             answer = game["answer"]
             players = game["players"]
             correct = []
@@ -487,15 +520,24 @@ def handle(message):
                     wrong.append(name)
             del GAME_STATE[cid]
             answer_text = "Правда ✅" if answer == "True" else "Ложь ❌"
-            correct_text = "\n".join(f"✅ {n}" for n in correct) if correct else "Никто"
-            wrong_text = "\n".join(f"❌ {n}" for n in wrong) if wrong else "Никто"
-            say(cid,
-                f"🧠 <b>Результат</b>\n\n"
-                f"Ответ: <b>{answer_text}</b>\n\n"
-                f"Угадали:\n{correct_text}\n\n"
-                f"Не угадали:\n{wrong_text}",
-                parse_mode="HTML"
-            )
+            header = "🧠 <b>Результат</b>" if elapsed <= 30 else "🧠 <b>Время вышло!</b>"
+            if not players:
+                say(cid,
+                    f"{header}\n\n"
+                    f"Никто не успел ответить.\n\n"
+                    f"Ответ: <b>{answer_text}</b>",
+                    parse_mode="HTML"
+                )
+            else:
+                correct_text = "\n".join(f"✅ {n}" for n in correct) if correct else "Никто"
+                wrong_text = "\n".join(f"❌ {n}" for n in wrong) if wrong else "Никто"
+                say(cid,
+                    f"{header}\n\n"
+                    f"Ответ: <b>{answer_text}</b>\n\n"
+                    f"Угадали:\n{correct_text}\n\n"
+                    f"Не угадали:\n{wrong_text}",
+                    parse_mode="HTML"
+                )
             return
 
         if cmd == "фильм":
