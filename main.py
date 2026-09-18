@@ -173,6 +173,9 @@ def handle(message):
 
     msg_id = getattr(message, "message_id", None) or getattr(message, "id", None)
     from_user = getattr(message, "from_user", None) or getattr(message, "from", None)
+
+    if from_user and getattr(from_user, "is_bot", False):
+        return
     if from_user and msg_id:
         uid = getattr(from_user, "id", None)
         uname = getattr(from_user, "username", "") or ""
@@ -235,7 +238,9 @@ def handle(message):
                 "<code>/стрелять</code> — стрельнуть (ответь на сообщение)\n"
                 "<code>/орелрешка @ник</code> — орёл и решка\n"
                 "<code>/принять орёл/решка</code> — принять вызов\n"
-                "<code>/верю</code> — верю/не верю (тру/фейк)\n"
+                "<code>/верю</code> — верю/не верю\n"
+                "<code>/B</b> — верю\n"
+                "<code>/NB</b> — не верю\n"
                 "<code>/результат</code> — показать результат\n\n"
                 "<b>🎬 Что посмотреть</b>\n"
                 "<code>/фильм</code> — фильм на вечер\n"
@@ -412,20 +417,47 @@ def handle(message):
             say(cid,
                 f"🧠 <b>Верю/Не верю</b>\n\n"
                 f"{fact['q']}\n\n"
-                f"Отвечай: <b>В</b> (верю) или <b>НВ</b> (не верю)\n"
+                f"Отвечай: <b>/B</b> (верю) или <b>/NB</b> (не верю)\n"
                 f"30 секунд на ответ!",
                 parse_mode="HTML"
             )
             return
 
-        if cmd in ("в", "нв"):
+        if cmd in ("b", "nb"):
             GAME_STATE = getattr(handle, '_game_state', {})
             game = GAME_STATE.get(cid)
             if not game:
                 return
-            if time.time() - game["time"] > 30:
+            elapsed = time.time() - game["time"]
+            if elapsed > 30:
+                players = game["players"]
+                answer = game["answer"]
                 del GAME_STATE[cid]
-                say(cid, "Время вышло! Напиши /верю чтобы начать новый раунд.")
+                answer_text = "Правда ✅" if answer == "True" else "Ложь ❌"
+                if not players:
+                    say(cid,
+                        f"🧠 <b>Время вышло!</b>\n\n"
+                        f"Никто не успел ответить.\n\n"
+                        f"Ответ: <b>{answer_text}</b>",
+                        parse_mode="HTML"
+                    )
+                else:
+                    correct = []
+                    wrong = []
+                    for name, vote in players.items():
+                        if (vote == "В" and answer == "True") or (vote == "НВ" and answer == "False"):
+                            correct.append(name)
+                        else:
+                            wrong.append(name)
+                    correct_text = "\n".join(f"✅ {n}" for n in correct) if correct else "Никто"
+                    wrong_text = "\n".join(f"❌ {n}" for n in wrong) if wrong else "Никто"
+                    say(cid,
+                        f"🧠 <b>Время вышло!</b>\n\n"
+                        f"Ответ: <b>{answer_text}</b>\n\n"
+                        f"Угадали:\n{correct_text}\n\n"
+                        f"Не угадали:\n{wrong_text}",
+                        parse_mode="HTML"
+                    )
                 return
             uname = "Кто-то"
             if from_user:
@@ -433,7 +465,8 @@ def handle(message):
             if uname in game["players"]:
                 say(cid, "Ты уже ответил!")
                 return
-            game["players"][uname] = cmd.upper()
+            vote = "В" if cmd == "b" else "НВ"
+            game["players"][uname] = vote
             say(cid, f"✅ {uname} проголосовал")
             return
 
