@@ -328,7 +328,8 @@ def handle(message):
 
         if cmd == "гонка":
             RACES = getattr(handle, '_races', {})
-            if cid in RACES and time.time() - RACES[cid]["start"] < 15:
+            old = RACES.get(cid)
+            if old and not old.get("winner") and time.time() < old["start"] + 15:
                 say(cid, "Гонка уже идёт! Жми /старт!")
                 return
             delay = random.randint(3, 5)
@@ -356,9 +357,7 @@ def handle(message):
             if from_user:
                 name = getattr(from_user, "first_name", None) or getattr(from_user, "username", None) or "Кто-то"
             race["winner"] = name
-            medals = ["🥇", "🥈", "🥉"]
-            medal = random.choice(medals)
-            say(cid, f"{medal} <b>{name}</b> победил в гонке!", parse_mode="HTML")
+            say(cid, f"🥇 <b>{name}</b> победил в гонке!", parse_mode="HTML")
             return
 
         if cmd == "орелрешка":
