@@ -236,6 +236,7 @@ def handle(message):
                 "<code>/котик</code> — рандомный котик\n"
                 "<code>/собака</code> — рандомная собака\n"
                 "<code>/стрелять</code> — стрельнуть (ответь на сообщение)\n"
+                "<code>/гонка</code> — кто первый жмёт /старт\n"
                 "<code>/орелрешка @ник</code> — орёл и решка\n"
                 "<code>/принять орёл/решка</code> — принять вызов\n"
                 "<code>/верю</code> — верю/не верю\n"
@@ -323,6 +324,36 @@ def handle(message):
                 f"🔫 {shooter} стрельнул в {target}!\n\n🎯 Точное попадание!",
             ]
             say(cid, random.choice(actions))
+            return
+
+        if cmd == "гонка":
+            RACES = getattr(handle, '_races', {})
+            if cid in RACES and time.time() - RACES[cid]["start"] < 10:
+                say(cid, "Гонка уже идёт! Жми /старт!")
+                return
+            RACES[cid] = {"start": time.time(), "winner": None}
+            handle._races = RACES
+            say(cid, "🏁 <b>БЕГИ!</b> Пиши /старт!", parse_mode="HTML")
+            return
+
+        if cmd == "старт":
+            RACES = getattr(handle, '_races', {})
+            race = RACES.get(cid)
+            if not race:
+                return
+            if race["winner"]:
+                return
+            if time.time() - race["start"] > 10:
+                del RACES[cid]
+                say(cid, "⏰ Гонка окончена. Никто не добежал.")
+                return
+            name = "Кто-то"
+            if from_user:
+                name = getattr(from_user, "first_name", None) or getattr(from_user, "username", None) or "Кто-то"
+            race["winner"] = name
+            medals = ["🥇", "🥈", "🥉"]
+            medal = random.choice(medals)
+            say(cid, f"{medal} <b>{name}</b> победил в гонке!", parse_mode="HTML")
             return
 
         if cmd == "орелрешка":
@@ -569,6 +600,7 @@ try:
         {"command": "котик", "description": "рандомный котик"},
         {"command": "собака", "description": "рандомная собака"},
         {"command": "стрелять", "description": "стрельнуть (ответь на сообщение)"},
+        {"command": "гонка", "description": "кто первый жмёт /старт"},
         {"command": "орелрешка", "description": "орёл и решка"},
         {"command": "принять", "description": "принять вызов"},
         {"command": "верю", "description": "верю/не верю"},
