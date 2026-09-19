@@ -334,14 +334,14 @@ def handle(message):
                 say(cid, "Гонка уже идёт! Жми /старт!")
                 return
             delay = random.randint(3, 5)
-            RACES[cid] = {"start": time.time() + delay + 3, "winner": None, "started": False}
+            RACES[cid] = {"start": time.time() + 8, "winner": None, "started": False}
             handle._races = RACES
-            msg = bot.send_message(cid, f"🏁 Гонка через {delay + 3}...")
+            msg = bot.send_message(cid, "🏁 Гонка через 5...")
             msg_id = getattr(msg, "message_id", None) or (msg.get("message_id") if isinstance(msg, dict) else None)
 
-            def countdown(cid, msg_id, secs):
-                for i in range(secs, 0, -1):
-                    time.sleep(1)
+            def countdown(cid, msg_id):
+                for i in range(5, 0, -1):
+                    t0 = time.monotonic()
                     try:
                         if i == 1:
                             bot.edit_message_text("🏁 <b>БЕГИ!</b>", cid, msg_id, parse_mode="HTML")
@@ -349,13 +349,15 @@ def handle(message):
                             bot.edit_message_text(f"🏁 Гонка через {i}...", cid, msg_id)
                     except Exception:
                         pass
+                    elapsed = time.monotonic() - t0
+                    time.sleep(max(0, 1 - elapsed))
                 RACES2 = getattr(handle, '_races', {})
                 r = RACES2.get(cid)
                 if r:
                     r["start"] = time.time()
                     r["started"] = True
 
-            t = threading.Thread(target=countdown, args=(cid, msg_id, delay + 3), daemon=True)
+            t = threading.Thread(target=countdown, args=(cid, msg_id), daemon=True)
             t.start()
             return
 
