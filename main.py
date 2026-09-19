@@ -328,12 +328,13 @@ def handle(message):
 
         if cmd == "гонка":
             RACES = getattr(handle, '_races', {})
-            if cid in RACES and time.time() - RACES[cid]["start"] < 10:
+            if cid in RACES and time.time() - RACES[cid]["start"] < 15:
                 say(cid, "Гонка уже идёт! Жми /старт!")
                 return
-            RACES[cid] = {"start": time.time(), "winner": None}
+            delay = random.randint(3, 5)
+            RACES[cid] = {"start": time.time() + delay, "winner": None}
             handle._races = RACES
-            say(cid, "🏁 <b>БЕГИ!</b> Пиши /старт!", parse_mode="HTML")
+            say(cid, f"🏁 Гонка через {delay}...")
             return
 
         if cmd == "старт":
@@ -343,7 +344,11 @@ def handle(message):
                 return
             if race["winner"]:
                 return
-            if time.time() - race["start"] > 10:
+            now = time.time()
+            if now < race["start"]:
+                say(cid, "Гонка ещё не началась! Подожди.")
+                return
+            if now - race["start"] > 10:
                 del RACES[cid]
                 say(cid, "⏰ Гонка окончена. Никто не добежал.")
                 return
