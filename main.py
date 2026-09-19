@@ -1,6 +1,7 @@
 import time
 import random
 import json
+import threading
 import urllib.request
 from unixgram import Bot
 from unixgram.exceptions import NetworkError, ApiError
@@ -333,9 +334,29 @@ def handle(message):
                 say(cid, "Гонка уже идёт! Жми /старт!")
                 return
             delay = random.randint(3, 5)
-            RACES[cid] = {"start": time.time() + delay, "winner": None}
+            RACES[cid] = {"start": time.time() + delay + 3, "winner": None, "started": False}
             handle._races = RACES
-            say(cid, f"🏁 Гонка через {delay}...")
+            msg = bot.send_message(cid, f"🏁 Гонка через {delay + 3}...")
+            msg_id = getattr(msg, "message_id", None) or (msg.get("message_id") if isinstance(msg, dict) else None)
+
+            def countdown(cid, msg_id, secs):
+                for i in range(secs, 0, -1):
+                    time.sleep(1)
+                    try:
+                        if i == 1:
+                            bot.edit_message_text("🏁 <b>БЕГИ!</b>", cid, msg_id, parse_mode="HTML")
+                        else:
+                            bot.edit_message_text(f"🏁 Гонка через {i}...", cid, msg_id)
+                    except Exception:
+                        pass
+                RACES2 = getattr(handle, '_races', {})
+                r = RACES2.get(cid)
+                if r:
+                    r["start"] = time.time()
+                    r["started"] = True
+
+            t = threading.Thread(target=countdown, args=(cid, msg_id, delay + 3), daemon=True)
+            t.start()
             return
 
         if cmd == "старт":
@@ -346,7 +367,7 @@ def handle(message):
             if race["winner"]:
                 return
             now = time.time()
-            if now < race["start"]:
+            if not race.get("started"):
                 say(cid, "Гонка ещё не началась! Подожди.")
                 return
             if now - race["start"] > 10:
